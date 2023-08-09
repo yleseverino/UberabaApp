@@ -106,8 +106,6 @@ fun UberabaApp(name: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-
-
     }
 }
 
