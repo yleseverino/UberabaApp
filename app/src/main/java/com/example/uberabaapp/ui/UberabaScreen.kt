@@ -1,7 +1,9 @@
 package com.example.uberabaapp.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -22,20 +24,26 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.uberabaapp.R
 import com.example.uberabaapp.UberabaBottomNavigationBar
 import com.example.uberabaapp.data.Categorie
@@ -49,13 +57,25 @@ data class NavigationItemContent(
     val text: String
 )
 
+enum class UberabaScreen(@StringRes val title: Int) {
+    Home(title = R.string.home_screen),
+    Details(title = R.string.details_screen)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UberabaApp(name: String, modifier: Modifier = Modifier) {
+fun UberabaApp(
+    name: String, modifier: Modifier = Modifier, viewModel: UberabaViewModel = viewModel(),
+    navController: NavHostController = rememberNavController()
+) {
 
-    val viewModel: UberabaViewModel = viewModel()
     val uberabaState = viewModel.uiState.collectAsState().value
+
+    val backStackEntry by navController.currentBackStackEntryAsState()
+
+    val currentScreen = UberabaScreen.valueOf(
+        backStackEntry?.destination?.route ?: UberabaScreen.Home.name
+    )
 
     val navigationItemContentList = listOf<NavigationItemContent>(
         NavigationItemContent(
@@ -82,80 +102,121 @@ fun UberabaApp(name: String, modifier: Modifier = Modifier) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(title = { Text(text = "Uberaba") })
+            CenterAlignedTopAppBar(title = { Text(text = stringResource(id = currentScreen.title)) })
         },
-        bottomBar = {
-            UberabaBottomNavigationBar(
-                currentTab = uberabaState.currentCategory,
-                onTabPressed = { category: Categorie -> viewModel.updateCurrentCategory(category) },
-                navigationItemContentList = navigationItemContentList
-            )
-        }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(
-                16.dp
-            )
+        NavHost(
+            navController = navController,
+            startDestination = UberabaScreen.Home.name,
+            modifier = Modifier.padding(innerPadding)
         ) {
-            items(uberabaState.currentCategoryItems, key = { place -> place.id }) {
-                UberabaPlaceCard(
-                    it
+            composable(route = UberabaScreen.Home.name) {
+                UberabaHomeScreen(
+                    currentCategoryItems = uberabaState.currentCategoryItems,
+                    currentCategory = uberabaState.currentCategory,
+                    onSelectCategorie = { category: Categorie -> viewModel.updateCurrentCategory(category) },
+                    navigationComponents = navigationItemContentList,
+                    onSelectPLace = {place ->
+                        navController.navigate(UberabaScreen.Details.name)
+                    }
                 )
+            }
+            composable(route = UberabaScreen.Details.name) {
+                UberabaDetailsScreen(id = 1)
             }
         }
     }
 }
 
+@Composable
+fun UberabaHomeScreen(
+    currentCategoryItems: List<Place>,
+    currentCategory: Categorie,
+    onSelectCategorie: (Categorie) -> Unit,
+    navigationComponents: List<NavigationItemContent>,
+    onSelectPLace: (place: Place) -> Unit
+) {
+    Column {
+        LazyColumn(
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(
+                16.dp
+            )
+        ) {
+            items(currentCategoryItems, key = { place -> place.id }) {
+                UberabaPlaceCard(
+                    it,
+                    onSelectPLace = onSelectPLace
+                )
+            }
+        }
 
+        UberabaBottomNavigationBar(
+            currentTab = currentCategory,
+            onSelectCategorie,
+            navigationItemContentList = navigationComponents
+        )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UberabaPlaceCard(
     place: Place,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSelectPLace: (place: Place) -> Unit
 ) {
-    Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = painterResource(id = place.image),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(2f)
-                            .padding(start = 8.dp)
+    Surface(onClick = {
+        onSelectPLace(place)
+    }) {
+        Card(
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(id = place.title),
-                            style = MaterialTheme.typography.labelMedium
+                        Image(
+                            painter = painterResource(id = place.image),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop,
                         )
-                        CategorieCaption(place.categorie)
+                        Column(
+                            modifier = Modifier
+                                .weight(2f)
+                                .padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(id = place.title),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            CategorieCaption(place.categorie)
 
+                        }
                     }
+                    Icon(
+                        imageVector = Icons.Default.StarBorder,
+                        contentDescription = "Mark as liked"
+                    )
                 }
-                Icon(imageVector = Icons.Default.StarBorder, contentDescription = "Mark as liked")
+                Text(
+                    text = stringResource(id = place.title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
+                )
+                Text(
+                    text = stringResource(id = place.description),
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
-            Text(
-                text = stringResource(id = place.title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
-            )
-            Text(
-                text = stringResource(id = place.description),
-                style = MaterialTheme.typography.bodyLarge
-            )
         }
     }
 }
@@ -209,6 +270,8 @@ private fun getCategorieInfo(categorie: Categorie): NavigationItemContent {
 @Composable
 fun UberabaPlaceCardPreview() {
     UberabaAppTheme {
-        UberabaPlaceCard(LocalPlacesDataProvider.allPlaces.first())
+        UberabaPlaceCard(LocalPlacesDataProvider.allPlaces.first(), onSelectPLace = {
+
+        })
     }
 }

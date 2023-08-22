@@ -5,6 +5,9 @@
     <string name="eat">Comer</string>
     <string name="home">Todos</string>
 
+    <string name="home_screen">Home</string>
+    <string name="details_screen">Details</string>
+
     <string name="place_0_title">Biblioteca Municipla</string>
     <string name="place_0_desc">A Biblioteca Municipal Bernardo Guimarães, em Uberaba, deve seguir parcialmente interditada por pelo menos um ano para obras. O prédio, que fica na região central da cidade, têm tido problemas na estrutura</string>
 
